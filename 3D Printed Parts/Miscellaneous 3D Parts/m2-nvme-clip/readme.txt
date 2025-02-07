@@ -1,0 +1,1 @@
+Print with 0.08mm (extra fine) or 0.12, (fine) layer height, support on build plate only - tree(auto) - style: tree slim
