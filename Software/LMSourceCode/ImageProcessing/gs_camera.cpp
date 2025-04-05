@@ -210,7 +210,23 @@ namespace golf_sim {
 
     int GolfSimCamera::getExpectedBallRadiusPixels(const int resolution_x_, const double distance) {
 
+        if (!camera_.cameraInitialized) {
+            GS_LOG_MSG(warning, "Camera hardware not initialized in GetCalibratedBall!");
+            // TBD - For now, just ignore.    return false;
+        }
+
+        // Get a reasonable default in case (for some reason), the camera's radius has not been set;
         double radius = kExpectedBallRadiusPixelsAt40cm;
+
+        // Get the cameraa's expected ball radius.  There might be two different cameras, or two different
+        // lenses (e.g., one wide, one telephoto), with different respective radii.
+        if (camera_.expected_ball_radius_pixels_at_40cm_ > 0) {
+            kExpectedBallRadiusPixelsAt40cm = camera_.expected_ball_radius_pixels_at_40cm_;
+        }
+        else
+        {
+            GS_LOG_TRACE_MSG(warning, "expected_ball_radius_pixels_at_40cm_ not set in camera in GolfSimCamera::getExpectedBallRadiusPixels().  Setting to default instead.");
+        }
 
         GS_LOG_TRACE_MSG(trace, "getExpectedBallRadiusPixels called with resolution: " + std::to_string(resolution_x_) + 
                         ", distance: " + std::to_string(distance) + ", and with expected radius at 40cm of: " + std::to_string(radius));
@@ -2530,6 +2546,11 @@ namespace golf_sim {
                 return false;
             }
 
+            if (distances.empty()) {
+                LoggingTools::Warning("GetBallDistancesAndRatios returned no data.  Has the strobe vector been established?");
+                return false;
+            }
+
             LoggingTools::Trace( "Return_balls distances: ", distances);
             LoggingTools::Trace( "--------------------Return_balls distance ratios (adjusted for slow-down): ", distance_ratios);
 
@@ -3194,7 +3215,7 @@ namespace golf_sim {
             // Now use the two 'best' balls to determine the position deltas for the balls so that we 
             // can, for example, compute velocity
             if (!camera.ComputeBallDeltas(spin_ball1, spin_ball2, camera, camera)) {
-                GS_LOG_MSG(error, "ProcessReceivedCam2Image - failed to ComputeBallDeltas for spin ball.");
+                GS_LOG_MSG(error, "ProcessSpin - failed to ComputeBallDeltas for spin ball.");
                 return false;
             }
 
@@ -3204,7 +3225,7 @@ namespace golf_sim {
 
             LoggingTools::Trace("Two closest balls (for spin analysis) are:\n" + spin_ball1.Format() + "\nand\n" + spin_ball2.Format());
 
-            ShowAndLogBalls("ProcessReceivedCam2Image - Final Spin Balls", strobed_balls_gray_image, finalSpinBalls, kLogIntermediateExposureImagesToFile);
+            ShowAndLogBalls("ProcessSpin - Final Spin Balls", strobed_balls_gray_image, finalSpinBalls, kLogIntermediateExposureImagesToFile);
 
 
             // The best spin analysis will likely be between the two closest balls that are non-overlapping
@@ -3350,7 +3371,7 @@ namespace golf_sim {
 
                     GolfBall ball2 = balls_and_timing[j].ball;
 
-                    GS_LOG_MSG(error, "ComputeAveragedStrobedBallData comparing the following two balls (indexes are within the vector): Balls (" + std::to_string(i) + ", " + std::to_string(j) + ").");
+                    GS_LOG_MSG(trace, "ComputeAveragedStrobedBallData comparing the following two balls (indexes are within the vector): Balls (" + std::to_string(i) + ", " + std::to_string(j) + ").");
 
                     // Ball2 will have the averaged information
                     if (!ComputeBallDeltas(ball1, ball2, camera, camera /* all_balls_camera2 */)) {
